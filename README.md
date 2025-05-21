@@ -1,9 +1,10 @@
 # tbfnorm
 ### Normalizing b-factors for analyzing dynamics of experimentally derived protein structures
 
-## To run the script, we suggest to use Miniconda to install the environment via following command:
+## To run the script, we suggest to use Miniconda to install the environment via following command. Then activate the environment:
 ```
 conda env create -f tbfnorm_env.yml -n tbfnorm
+conda activate tbfnorm
 ```
 To install Miniconda, please refer to [Anaconda: Installing Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install)
 ## Following commands can be used to run b-factor normalization with different inputs:

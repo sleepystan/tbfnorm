@@ -1,0 +1,8 @@
+name: tbfnorm
+channels:
+  - conda-forge
+dependencies:
+  - numpy=2.2.6
+  - pandas=2.2.3
+  - pymol-open-source=3.1.0
+  - python=3.12.10
