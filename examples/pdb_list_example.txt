@@ -1,0 +1,9 @@
+# If you want to make comments within this file, use a '#' in front of the line
+# > Make sure not to leave empty lines!
+# Following structures were taken from https://doi.org/10.1101/2021.05.03.437411
+7MHF
+7MHG
+7MHH
+7MHI
+7MHJ
+7MHK

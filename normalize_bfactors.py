@@ -24,7 +24,7 @@ pd.options.mode.copy_on_write = True
 # argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', help='directory with .pdb/.cif files, an input PDB ID, or a text file containing a list of PDB IDs. Please identify type of input!', required=True)
-parser.add_argument('--input_type', '-t', help='three types of input: file_dir, pdb, pdb_list_file', choices=['file_dir', 'pdb', 'pdb_list_file'], required=True)
+parser.add_argument('--input_type', '-t', help='three types of input: file_dir, pdb, pdb_list', choices=['file_dir', 'pdb', 'pdb_list'], required=True)
 parser.add_argument('--out_dir', '-o', help='output directory for results')
 parser.add_argument('--domain', '-d', help='Work In Progress. Functionality to truncate a protein to a specific domain in interest', default=None)
 args = parser.parse_args()
@@ -41,29 +41,29 @@ def retrieve_bfactors(structures, type, out_dir, domain=None):
             obj_li.append(ref)
             s.cmd.load(files[0], ref)
             for struct in files[1:]:
-                s.cmd.load(struct)
-                s.cmd.align(struct, ref)
-                obj_li.append(os.path.basename(struct)[:-4])    
+                obj = os.path.basename(struct)[:-4]
+                if obj in obj_li:
+                    raise Exception(f'Structure name {obj} is duplicated. Please check your naming!')
+                s.cmd.load(struct, obj)
+                s.cmd.align(obj, ref)
+                obj_li.append(obj)    
         else:
             if type == 'pdb':
                 s.cmd.fetch(structures)
-                os.popen(f'rm ./{args.input}.cif')
                 obj_li = [structures]
-            elif type == 'pdb_list_file':
+            elif type == 'pdb_list':
                 pdb_li = []
                 with open(structures, 'r') as fi:
                     lines = fi.readlines()
                 for line in lines:
                     if not line.startswith('#'):
-                        pdb_li.append(line.replace(' ', '').replace(',', ''))
+                        pdb_li.append(line.replace(' ', '').replace(',', '').replace('\n', ''))
                 obj_li = pdb_li
                 ref = pdb_li[0]
                 s.cmd.fetch(ref, ref)
-                os.popen(f'rm ./{ref}.cif')
                 for pdb in pdb_li[1:]:
                     s.cmd.fetch(pdb)
                     s.cmd.align(pdb, ref)
-                    os.popen(f'rm ./{pdb}.cif')
             else:
                 raise Exception('No input recognized!')
         
@@ -84,9 +84,9 @@ def retrieve_bfactors(structures, type, out_dir, domain=None):
         
         # generate the first dataframe for bfactors
         ref = obj_li[0]
-        bf_dict = {f'atomname': [], 'res_no': [], 'res_name': [], 'atom_id': [], f'{ref}_bfactor': []}
+        bf_dict = {f'atomname': [], 'res_no': [], 'res_name': [], 'atom_id': [], f'bfactor_{ref}': []}
         s.cmd.iterate(ref, f'atomname.append(resi+resn+"_"+name)', space=bf_dict)
-        s.cmd.iterate(ref, f'{ref}_bfactor.append(b)', space=bf_dict)
+        s.cmd.iterate(ref, f'bfactor_{ref}.append(b)', space=bf_dict)
         s.cmd.iterate(ref, f'res_no.append(resi)', space=bf_dict)
         s.cmd.iterate(ref, f'res_name.append(resn)', space=bf_dict)
         s.cmd.iterate(ref, f'atom_id.append(name)', space=bf_dict)
@@ -95,9 +95,9 @@ def retrieve_bfactors(structures, type, out_dir, domain=None):
         # generate other bfactors
         
         for obj in obj_li[1:]:
-            tmp_dict = {f'atomname': [], 'res_no': [], 'res_name': [], 'atom_id': [], f'{obj}_bfactor': []}
+            tmp_dict = {f'atomname': [], 'res_no': [], 'res_name': [], 'atom_id': [], f'bfactor_{obj}': []}
             s.cmd.iterate(obj, f'atomname.append(resi+resn+"_"+name)', space=tmp_dict)
-            s.cmd.iterate(obj, f'{obj}_bfactor.append(b)', space=tmp_dict)
+            s.cmd.iterate(obj, f'bfactor_{obj}.append(b)', space=tmp_dict)
             s.cmd.iterate(obj, f'res_no.append(resi)', space=tmp_dict)
             s.cmd.iterate(obj, f'res_name.append(resn)', space=tmp_dict)
             s.cmd.iterate(obj, f'atom_id.append(name)', space=tmp_dict)
@@ -118,7 +118,7 @@ def normalize_bfactors(df, obj_li, out_dir):
     means = []
     stdevs = []
     for obj in obj_li:
-        tmp_array = np.array(df_[f'{obj}_bfactor'])
+        tmp_array = np.array(df_[f'bfactor_{obj}'])
         avg = np.nanmean(tmp_array)
         means.append(avg)
         stdev = np.nanstd(tmp_array)
@@ -132,8 +132,8 @@ def normalize_bfactors(df, obj_li, out_dir):
     for i, obj in enumerate(msd_df['structure']):
         mean = msd_df.loc[i, 'mean']
         stdev = msd_df.loc[i, 'stdev']
-        df_[f'{obj}_normalized'] = (df_[f'{obj}_bfactor']-mean)/stdev
-        df_.drop(labels=[f'{obj}_bfactor'], axis=1, inplace=True)
+        df_[f'normalized_{obj}'] = (df_[f'bfactor_{obj}']-mean)/stdev
+        df_.drop(labels=[f'bfactor_{obj}'], axis=1, inplace=True)
     df_norm = df_
     norm_out = os.path.join(out_dir, 'normalized_bfactors.csv')
     print(f'Saving normalized b-factors to {norm_out}...')
@@ -150,7 +150,7 @@ def assign_bfactors(df_norm, pse_in, obj_li, out_dir):
             for i, resind in enumerate(df_norm['res_no']):
                 resname = df_norm.loc[i, 'res_name']
                 atomid = df_norm.loc[i, 'atom_id']
-                if np.isnan(df_norm.loc[i, f'{obj}_normalized']):
+                if np.isnan(df_norm.loc[i, f'normalized_{obj}']):
                     # print(resind, resname, atomid)
                     continue
                 s.cmd.select('atom', f'{obj} and resi {resind} and name {atomid}')
@@ -162,7 +162,7 @@ def assign_bfactors(df_norm, pse_in, obj_li, out_dir):
                 if atomcount != 1:
                     raise Exception(f"More than one atom exists in {obj}: residue {resname} {resind}, atom {atomid}")
                 
-                b_prime = df.loc[i, f"{obj}_normalized"]
+                b_prime = df_norm.loc[i, f"normalized_{obj}"]
                 s.cmd.alter('atom', f'b={b_prime}')
             
             out_pdb = os.path.join(pdb_out_dir, f'{obj}_normalized.pdb')
@@ -174,8 +174,22 @@ def assign_bfactors(df_norm, pse_in, obj_li, out_dir):
     return
 
 if __name__ == '__main__':
-    print('Initializing...')
-    print('If used for a publication, please cite: [placeholder]')
+    # Header
+    print('---------------\nInitializing...\n---------------')
+    statement = 'Copyright 2025 Stan Xiaogang Li, Dima Kozakov, Peter J. Tonge\n'
+    statement += 'Licensed under the Apache License, Version 2.0 (the "License");\n'
+    statement += 'you may not use this file except in compliance with the License.\n'
+    statement += 'you may not use this file except in compliance with the License.\n'
+    statement += 'You may obtain a copy of the License at\n\n'
+    statement += 'http://www.apache.org/licenses/LICENSE-2.0\n\n'
+    statement += 'Unless required by applicable law or agreed to in writing, software\n'
+    statement += 'distributed under the License is distributed on an "AS IS" BASIS,\n'
+    statement += 'WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n'
+    statement += 'See the License for the specific language governing permissions and\n'
+    statement += 'limitations under the License.\n'
+    print(statement)
+
+    print('_____________________________________________________\n\nIf used for a publication, please cite: [placeholder]\n\n_____________________________________________________\n\n')
     
     if not args.out_dir:
         out_dir = '.'
@@ -183,12 +197,18 @@ if __name__ == '__main__':
         raise Exception(f'Output exists in {args.out_dir}!')
     else:
         out_dir = args.out_dir
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
     
     raw_df, structure_list, pymol_session = retrieve_bfactors(args.input, args.input_type, out_dir)
     msd_df, df_norm = normalize_bfactors(raw_df, structure_list, out_dir)
     assign_bfactors(df_norm, pymol_session, structure_list, out_dir)
     
-    print('Finished calculation!')
+    # clean up fetched .cif files
+    if 'pdb' in args.input_type:
+        os.popen('rm ./*.cif')
+    
+    print('\n---------------------\nFinished calculation!\n---------------------')
     
     
         
