@@ -27,4 +27,6 @@ Example outputs can be found in the examples/example_outputs/ directory
 ### Credit
 
 This repository is part of following work:
-> [Placeholder](link)
+> [Bravo, E.; Li, Y.; Lin, D. Y.; DelloRusso, F.; Rahiyanath, A. S.; Li, S. X.; Corrionero, A.; Alfonso, P.; Kozakov, D.;
+Andreotti, A. H.; Tonge, P. J.. A Structure Kinetic Relationship for the Inhibition of Bruton’s Tyrosine Kinase. Journal
+of the American Chemical Society 2025. Accepted for Publication](link)

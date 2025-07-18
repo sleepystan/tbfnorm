@@ -1,4 +1,4 @@
-# Copyright 2025 Stan Xiaogang Li, Dima Kozakov, Peter J. Tonge
+# Copyright 2025 Stan Xiaogang Li, Marco Barone, Dima Kozakov, Peter J. Tonge
 
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -12,6 +12,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+print('==========================================================================================================================')
+print('If the script was used for publication, please cite: ')
+print('Bravo, E.; Li, Y.; Lin, D. Y.; DelloRusso, F.; Rahiyanath, A. S.; Li, S. X.; Corrionero, A.; Alfonso, P.; Kozakov, D.;')
+print('Andreotti, A. H.; Tonge, P. J.. A Structure Kinetic Relationship for the Inhibition of Bruton’s Tyrosine Kinase. Journal')
+print('of the American Chemical Society 2025. Accepted for Publication')
+print('==========================================================================================================================')
 
 import os
 import argparse
